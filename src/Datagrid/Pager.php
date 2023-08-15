@@ -38,16 +38,39 @@ class Pager extends BasePager
             $countQuery->setParameters($this->getParameters());
         }
 
+        $groupBys = $countQuery->getQueryBuilder()->getDQLPart('groupBy');
+        if (!empty($groupBys)) {
+            /** @var Query\Expr\Select $prevSelect */
+            $prevSelect = $countQuery->getQueryBuilder()->getDQLPart('select');
+            $aliases = [];
+            foreach ($prevSelect->getParts() as $select) {
+                if (preg_match('/\s+as\s+`?([^`]+)`?/i', $select, $matches)) {
+                    $aliases[$matches[1]] = $select;
+                }
+            }
+        }
+
         $countQuery->select(sprintf(
-            'count(%s %s.%s) as cnt',
+            'count(%s %s.%s) as _pager_cnt',
             $countQuery instanceof ProxyQuery && !$countQuery->isDistinct() ? null : 'DISTINCT',
             current($countQuery->getRootAliases()),
             current($this->getCountColumn())
         ));
 
+        if (!empty($prevSelect)) {
+            foreach ($groupBys as $groupBy) {
+                /** @var Query\Expr\GroupBy $groupBy */
+                foreach ($groupBy->getParts() as $part) {
+                    if (isset($aliases[$part])) {
+                        $countQuery->addSelect($aliases[$part]);
+                    }
+                }
+            }
+        }
+
         return array_sum(array_column(
             $countQuery->resetDQLPart('orderBy')->getQuery()->getResult(Query::HYDRATE_SCALAR),
-            'cnt'
+            '_pager_cnt'
         ));
     }
 
