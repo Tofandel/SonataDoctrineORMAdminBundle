@@ -38,14 +38,17 @@ class Pager extends BasePager
             $countQuery->setParameters($this->getParameters());
         }
 
+        /** @var Query\Expr\GroupBy[] $groupBys */
         $groupBys = $countQuery->getQueryBuilder()->getDQLPart('groupBy');
         if (!empty($groupBys)) {
-            /** @var Query\Expr\Select $prevSelect */
-            $prevSelect = $countQuery->getQueryBuilder()->getDQLPart('select');
+            /** @var Query\Expr\Select[] $prevSelects */
+            $prevSelects = $countQuery->getQueryBuilder()->getDQLPart('select');
             $aliases = [];
-            foreach ($prevSelect->getParts() as $select) {
-                if (preg_match('/\s+as\s+`?([^`]+)`?/i', $select, $matches)) {
-                    $aliases[$matches[1]] = $select;
+            foreach ($prevSelects as $prevSelect) {
+                foreach ($prevSelect->getParts() as $select) {
+                    if (preg_match('/\s+as\s+`?([^`]+)`?/i', $select, $matches)) {
+                        $aliases[$matches[1]] = $select;
+                    }
                 }
             }
         }
@@ -59,7 +62,6 @@ class Pager extends BasePager
 
         if (!empty($prevSelect)) {
             foreach ($groupBys as $groupBy) {
-                /** @var Query\Expr\GroupBy $groupBy */
                 foreach ($groupBy->getParts() as $part) {
                     if (isset($aliases[$part])) {
                         $countQuery->addSelect($aliases[$part]);
