@@ -35,7 +35,7 @@ class ShowBuilderTest extends TestCase
     // NEXT_MAJOR: Remove this property and all the occurences.
     private $modelManager;
 
-    protected function setUp(): void
+    public function setUp(): void
     {
         $this->guesser = $this->createStub(TypeGuesserInterface::class);
 
