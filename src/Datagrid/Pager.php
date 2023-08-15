@@ -45,7 +45,7 @@ class Pager extends BasePager
             $prevSelects = $countQuery->getQueryBuilder()->getDQLPart('select');
             $aliases = [];
             foreach ($prevSelects as $prevSelect) {
-                $selects = preg_split("/,(?![^(]+\))/", (string)$prevSelect);
+                $selects = preg_split("/\s*,(?![^(]+\))\s*/", (string)$prevSelect);
                 foreach ($selects as $select) {
                     if (preg_match('/\s+as\s+`?([^`]+)`?/i', $select, $matches)) {
                         $aliases[$matches[1]] = $select;
@@ -63,7 +63,7 @@ class Pager extends BasePager
 
         if (!empty($prevSelect)) {
             foreach ($groupBys as $groupBy) {
-                $parts = preg_split("/,(?![^(]+\))/", (string)$groupBy);
+                $parts = preg_split("/\s*,(?![^(]+\))\s*/", (string)$groupBy);
                 foreach ($parts as $part) {
                     if (isset($aliases[$part])) {
                         $countQuery->addSelect($aliases[$part]);
