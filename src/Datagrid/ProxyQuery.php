@@ -315,7 +315,7 @@ class ProxyQuery implements ProxyQueryInterface
     {
         $queryBuilderId = clone $queryBuilder;
 
-        if (!empty($queryBuilder->getDQLPart('groupBy'))) {
+        if (empty($queryBuilder->getDQLPart('groupBy'))) {
             $rootAlias = current($queryBuilderId->getRootAliases());
 
             // step 1 : retrieve the targeted class
