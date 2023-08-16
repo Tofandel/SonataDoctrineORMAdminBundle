@@ -314,65 +314,68 @@ class ProxyQuery implements ProxyQueryInterface
     protected function getFixedQueryBuilder(QueryBuilder $queryBuilder)
     {
         $queryBuilderId = clone $queryBuilder;
-        $rootAlias = current($queryBuilderId->getRootAliases());
 
-        // step 1 : retrieve the targeted class
-        $from = $queryBuilderId->getDQLPart('from');
-        $class = $from[0]->getFrom();
-        $metadata = $queryBuilderId->getEntityManager()->getMetadataFactory()->getMetadataFor($class);
+        if (!empty($queryBuilder->getDQLPart('groupBy'))) {
+            $rootAlias = current($queryBuilderId->getRootAliases());
 
-        // step 2 : retrieve identifier columns
-        $idNames = $metadata->getIdentifierFieldNames();
+            // step 1 : retrieve the targeted class
+            $from = $queryBuilderId->getDQLPart('from');
+            $class = $from[0]->getFrom();
+            $metadata = $queryBuilderId->getEntityManager()->getMetadataFactory()->getMetadataFor($class);
 
-        // step 3 : retrieve the different subjects ids
-        $selects = [];
-        $idxSelect = '';
-        foreach ($idNames as $idName) {
-            $select = sprintf('%s.%s', $rootAlias, $idName);
-            // Put the ID select on this array to use it on results QB
-            $selects[$idName] = $select;
-            // Use IDENTITY if id is a relation too.
-            // See: http://doctrine-orm.readthedocs.org/en/latest/reference/dql-doctrine-query-language.html
-            // Should work only with doctrine/orm: ~2.2
-            $idSelect = $select;
-            if ($metadata->hasAssociation($idName)) {
-                $idSelect = sprintf('IDENTITY(%s) as %s', $idSelect, $idName);
-            }
-            $idxSelect .= ('' !== $idxSelect ? ', ' : '').$idSelect;
-        }
-        $queryBuilderId->select($idxSelect);
-        $queryBuilderId->distinct($this->isDistinct());
+            // step 2 : retrieve identifier columns
+            $idNames = $metadata->getIdentifierFieldNames();
 
-        // for SELECT DISTINCT, ORDER BY expressions must appear in idxSelect list
-        /* Consider
-            SELECT DISTINCT x FROM tab ORDER BY y;
-        For any particular x-value in the table there might be many different y
-        values.  Which one will you use to sort that x-value in the output?
-        */
-        $queryId = $queryBuilderId->getQuery();
-        $queryId->setHint(Query::HINT_CUSTOM_TREE_WALKERS, [OrderByToSelectWalker::class]);
-        $results = $queryId->execute([], Query::HYDRATE_ARRAY);
-        $platform = $queryBuilderId->getEntityManager()->getConnection()->getDatabasePlatform();
-        $idxMatrix = [];
-        foreach ($results as $id) {
+            // step 3 : retrieve the different subjects ids
+            $selects = [];
+            $idxSelect = '';
             foreach ($idNames as $idName) {
-                // Convert ids to database value in case of custom type, if provided.
-                $fieldType = $metadata->getTypeOfField($idName);
-                $idxMatrix[$idName][] = $fieldType && Type::hasType($fieldType)
-                    ? Type::getType($fieldType)->convertToDatabaseValue($id[$idName], $platform)
-                    : $id[$idName];
+                $select = sprintf('%s.%s', $rootAlias, $idName);
+                // Put the ID select on this array to use it on results QB
+                $selects[$idName] = $select;
+                // Use IDENTITY if id is a relation too.
+                // See: http://doctrine-orm.readthedocs.org/en/latest/reference/dql-doctrine-query-language.html
+                // Should work only with doctrine/orm: ~2.2
+                $idSelect = $select;
+                if ($metadata->hasAssociation($idName)) {
+                    $idSelect = sprintf('IDENTITY(%s) as %s', $idSelect, $idName);
+                }
+                $idxSelect .= ('' !== $idxSelect ? ', ' : '') . $idSelect;
             }
-        }
+            $queryBuilderId->select($idxSelect);
+            $queryBuilderId->distinct($this->isDistinct());
 
-        // step 4 : alter the query to match the targeted ids
-        foreach ($idxMatrix as $idName => $idx) {
-            if (\count($idx) > 0) {
-                $idxParamName = sprintf('%s_idx', $idName);
-                $idxParamName = preg_replace('/[^\w]+/', '_', $idxParamName);
-                $queryBuilder->andWhere(sprintf('%s IN (:%s)', $selects[$idName], $idxParamName));
-                $queryBuilder->setParameter($idxParamName, $idx);
-                $queryBuilder->setMaxResults(null);
-                $queryBuilder->setFirstResult(null);
+            // for SELECT DISTINCT, ORDER BY expressions must appear in idxSelect list
+            /* Consider
+                SELECT DISTINCT x FROM tab ORDER BY y;
+            For any particular x-value in the table there might be many different y
+            values.  Which one will you use to sort that x-value in the output?
+            */
+            $queryId = $queryBuilderId->getQuery();
+            $queryId->setHint(Query::HINT_CUSTOM_TREE_WALKERS, [OrderByToSelectWalker::class]);
+            $results = $queryId->execute([], Query::HYDRATE_ARRAY);
+            $platform = $queryBuilderId->getEntityManager()->getConnection()->getDatabasePlatform();
+            $idxMatrix = [];
+            foreach ($results as $id) {
+                foreach ($idNames as $idName) {
+                    // Convert ids to database value in case of custom type, if provided.
+                    $fieldType = $metadata->getTypeOfField($idName);
+                    $idxMatrix[$idName][] = $fieldType && Type::hasType($fieldType)
+                        ? Type::getType($fieldType)->convertToDatabaseValue($id[$idName], $platform)
+                        : $id[$idName];
+                }
+            }
+
+            // step 4 : alter the query to match the targeted ids
+            foreach ($idxMatrix as $idName => $idx) {
+                if (\count($idx) > 0) {
+                    $idxParamName = sprintf('%s_idx', $idName);
+                    $idxParamName = preg_replace('/[^\w]+/', '_', $idxParamName);
+                    $queryBuilder->andWhere(sprintf('%s IN (:%s)', $selects[$idName], $idxParamName));
+                    $queryBuilder->setParameter($idxParamName, $idx);
+                    $queryBuilder->setMaxResults(null);
+                    $queryBuilder->setFirstResult(null);
+                }
             }
         }
 
