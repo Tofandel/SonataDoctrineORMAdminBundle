@@ -192,7 +192,13 @@ class ProxyQuery implements ProxyQueryInterface
             $query->setHint($name, $value);
         }
 
-        return $query->execute($params, empty($hydrationMode) && !empty($queryBuilder->getDQLPart('groupBy')) ? $query::HYDRATE_SIMPLEOBJECT : $hydrationMode);
+        $result = $query->execute($params, $hydrationMode);
+        if (isset($result[0]) && is_array($result[0])) {
+            return array_map(function ($arr) {
+                return (object)$arr;
+            }, $result);
+        }
+        return $result;
     }
 
     public function setSortBy($parentAssociationMappings, $fieldMapping)

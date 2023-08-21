@@ -26,6 +26,10 @@ class BooleanFilter extends Filter
             return;
         }
 
+        if (!empty($alias)) {
+            $alias .= '.';
+        }
+
         if (\is_array($data['value'])) {
             $values = [];
             foreach ($data['value'] as $v) {
@@ -40,14 +44,14 @@ class BooleanFilter extends Filter
                 return;
             }
 
-            $this->applyWhere($queryBuilder, $queryBuilder->expr()->in(sprintf('%s.%s', $alias, $field), $values));
+            $this->applyWhere($queryBuilder, $queryBuilder->expr()->in(sprintf('%s%s', $alias, $field), $values));
         } else {
             if (!\in_array($data['value'], [BooleanType::TYPE_NO, BooleanType::TYPE_YES], true)) {
                 return;
             }
 
             $parameterName = $this->getNewParameterName($queryBuilder);
-            $this->applyWhere($queryBuilder, sprintf('%s.%s = :%s', $alias, $field, $parameterName));
+            $this->applyWhere($queryBuilder, sprintf('%s%s = :%s', $alias, $field, $parameterName));
             $queryBuilder->setParameter($parameterName, (BooleanType::TYPE_YES === $data['value']) ? 1 : 0);
         }
     }

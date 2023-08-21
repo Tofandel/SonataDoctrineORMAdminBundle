@@ -42,6 +42,9 @@ abstract class Filter extends BaseFilter
     protected function association(ProxyQueryInterface $queryBuilder, $value)
     {
         $alias = $queryBuilder->entityJoin($this->getParentAssociationMappings());
+        if (current($queryBuilder->getRootAliases()[0]) === $alias) {
+            $alias = null;
+        }
 
         return [$alias, $this->getFieldName()];
     }
