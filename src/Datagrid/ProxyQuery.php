@@ -172,7 +172,11 @@ class ProxyQuery implements ProxyQueryInterface
         }
 
         foreach ($identifierFields as $identifierField) {
-            $order = $rootAlias.'.'.$identifierField;
+
+            $order = $rootAlias . '.' . $identifierField;
+            if (!empty($queryBuilder->getDQLPart('groupBy'))) {
+                $order = 'min('.$order.')';
+            }
             if (!\in_array($order, $existingOrders, true)) {
                 $queryBuilder->addOrderBy(
                     $order,
