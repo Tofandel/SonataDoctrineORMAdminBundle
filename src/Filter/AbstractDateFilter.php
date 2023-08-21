@@ -52,10 +52,6 @@ abstract class AbstractDateFilter extends Filter
             return;
         }
 
-        if (!empty($alias)) {
-            $alias .= '.';
-        }
-
         if ($this->range) {
             // additional data check for ranged items
             if (!\array_key_exists('start', $data['value']) || !\array_key_exists('end', $data['value'])) {
@@ -89,14 +85,14 @@ abstract class AbstractDateFilter extends Filter
             $endDateParameterName = $this->getNewParameterName($queryBuilder);
 
             if (DateRangeType::TYPE_NOT_BETWEEN === $data['type']) {
-                $this->applyWhere($queryBuilder, sprintf('%s%s < :%s OR %s.%s > :%s', $alias, $field, $startDateParameterName, $alias, $field, $endDateParameterName));
+                $this->applyWhere($queryBuilder, sprintf('%s.%s < :%s OR %s.%s > :%s', $alias, $field, $startDateParameterName, $alias, $field, $endDateParameterName));
             } else {
                 if ($data['value']['start']) {
-                    $this->applyWhere($queryBuilder, sprintf('%s%s %s :%s', $alias, $field, '>=', $startDateParameterName));
+                    $this->applyWhere($queryBuilder, sprintf('%s.%s %s :%s', $alias, $field, '>=', $startDateParameterName));
                 }
 
                 if ($data['value']['end']) {
-                    $this->applyWhere($queryBuilder, sprintf('%s%s %s :%s', $alias, $field, '<=', $endDateParameterName));
+                    $this->applyWhere($queryBuilder, sprintf('%s.%s %s :%s', $alias, $field, '<=', $endDateParameterName));
                 }
             }
 
@@ -125,7 +121,7 @@ abstract class AbstractDateFilter extends Filter
 
             // null / not null only check for col
             if (\in_array($operator, ['NULL', 'NOT NULL'], true)) {
-                $this->applyWhere($queryBuilder, sprintf('%s%s IS %s ', $alias, $field, $operator));
+                $this->applyWhere($queryBuilder, sprintf('%s.%s IS %s ', $alias, $field, $operator));
 
                 return;
             }
@@ -134,11 +130,11 @@ abstract class AbstractDateFilter extends Filter
 
             // date filter should filter records for the whole day
             if (false === $this->time && DateType::TYPE_EQUAL === $data['type']) {
-                $this->applyWhere($queryBuilder, sprintf('%s%s %s :%s', $alias, $field, '>=', $parameterName));
+                $this->applyWhere($queryBuilder, sprintf('%s.%s %s :%s', $alias, $field, '>=', $parameterName));
                 $queryBuilder->setParameter($parameterName, $data['value']);
 
                 $endDateParameterName = $this->getNewParameterName($queryBuilder);
-                $this->applyWhere($queryBuilder, sprintf('%s%s %s :%s', $alias, $field, '<', $endDateParameterName));
+                $this->applyWhere($queryBuilder, sprintf('%s.%s %s :%s', $alias, $field, '<', $endDateParameterName));
                 if ('timestamp' === $this->getOption('input_type')) {
                     $endValue = strtotime('+1 day', $data['value']);
                 } else {
@@ -150,7 +146,7 @@ abstract class AbstractDateFilter extends Filter
                 return;
             }
 
-            $this->applyWhere($queryBuilder, sprintf('%s%s %s :%s', $alias, $field, $operator, $parameterName));
+            $this->applyWhere($queryBuilder, sprintf('%s.%s %s :%s', $alias, $field, $operator, $parameterName));
             $queryBuilder->setParameter($parameterName, $data['value']);
         }
     }

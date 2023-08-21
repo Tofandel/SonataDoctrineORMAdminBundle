@@ -49,18 +49,14 @@ class StringFilter extends Filter
 
         $or = $queryBuilder->expr()->orX();
 
-        if (!empty($alias)) {
-            $alias .= '.';
-        }
-
         if ($this->getOption('case_sensitive')) {
-            $or->add(sprintf('%s%s %s :%s', $alias, $field, $operator, $parameterName));
+            $or->add(sprintf('%s.%s %s :%s', $alias, $field, $operator, $parameterName));
         } else {
-            $or->add(sprintf('LOWER(%s%s) %s :%s', $alias, $field, $operator, $parameterName));
+            $or->add(sprintf('LOWER(%s.%s) %s :%s', $alias, $field, $operator, $parameterName));
         }
 
         if (ChoiceType::TYPE_NOT_CONTAINS === $data['type']) {
-            $or->add($queryBuilder->expr()->isNull(sprintf('%s%s', $alias, $field)));
+            $or->add($queryBuilder->expr()->isNull(sprintf('%s.%s', $alias, $field)));
         }
 
         $this->applyWhere($queryBuilder, $or);

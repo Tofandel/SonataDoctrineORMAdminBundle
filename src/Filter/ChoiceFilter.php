@@ -67,12 +67,8 @@ class ChoiceFilter extends Filter
             return null !== $value;
         });
 
-        if (!empty($alias)) {
-            $alias .= '.';
-        }
-
         // Have to pass IN array value as parameter. See: http://www.doctrine-project.org/jira/browse/DDC-3759
-        $completeField = sprintf('%s%s', $alias, $field);
+        $completeField = sprintf('%s.%s', $alias, $field);
         $parameterName = $this->getNewParameterName($queryBuilder);
         if (ChoiceType::TYPE_NOT_CONTAINS === $data['type']) {
             $andConditions = [$queryBuilder->expr()->isNotNull($completeField)];
@@ -97,24 +93,20 @@ class ChoiceFilter extends Filter
             return;
         }
 
-        if (!empty($alias)) {
-            $alias .= '.';
-        }
-
         $parameterName = $this->getNewParameterName($queryBuilder);
 
         if (ChoiceType::TYPE_NOT_CONTAINS === $data['type']) {
             if (null === $data['value']) {
-                $this->applyWhere($queryBuilder, $queryBuilder->expr()->isNotNull(sprintf('%s%s', $alias, $field)));
+                $this->applyWhere($queryBuilder, $queryBuilder->expr()->isNotNull(sprintf('%s.%s', $alias, $field)));
             } else {
-                $this->applyWhere($queryBuilder, sprintf('%s%s != :%s', $alias, $field, $parameterName));
+                $this->applyWhere($queryBuilder, sprintf('%s.%s != :%s', $alias, $field, $parameterName));
                 $queryBuilder->setParameter($parameterName, $data['value']);
             }
         } else {
             if (null === $data['value']) {
-                $this->applyWhere($queryBuilder, $queryBuilder->expr()->isNull(sprintf('%s%s', $alias, $field)));
+                $this->applyWhere($queryBuilder, $queryBuilder->expr()->isNull(sprintf('%s.%s', $alias, $field)));
             } else {
-                $this->applyWhere($queryBuilder, sprintf('%s%s = :%s', $alias, $field, $parameterName));
+                $this->applyWhere($queryBuilder, sprintf('%s.%s = :%s', $alias, $field, $parameterName));
                 $queryBuilder->setParameter($parameterName, $data['value']);
             }
         }
