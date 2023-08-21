@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Sonata\DoctrineORMAdminBundle\Datagrid;
 
 use Doctrine\ORM\Query;
+use Doctrine\ORM\Query\ResultSetMapping;
 use Sonata\AdminBundle\Datagrid\Pager as BasePager;
 
 /**
@@ -32,50 +33,27 @@ class Pager extends BasePager
 
     public function computeNbResult()
     {
-        $countQuery = clone $this->getQuery();
+        $originalQuery = clone $this->getQuery();
+        $originalQuery->resetDQLPart('orderBy');
 
         if (\count($this->getParameters()) > 0) {
-            $countQuery->setParameters($this->getParameters());
+            $originalQuery->setParameters($this->getParameters());
         }
 
-        /** @var Query\Expr\GroupBy[] $groupBys */
-        $groupBys = $countQuery->getQueryBuilder()->getDQLPart('groupBy');
-        if (!empty($groupBys)) {
-            /** @var Query\Expr\Select[] $prevSelects */
-            $prevSelects = $countQuery->getQueryBuilder()->getDQLPart('select');
-            $aliases = [];
-            foreach ($prevSelects as $prevSelect) {
-                $selects = preg_split("/\s*,(?![^(]+\))\s*/", (string)$prevSelect);
-                foreach ($selects as $select) {
-                    if (preg_match('/\s+as\s+`?([^`]+)`?/i', $select, $matches)) {
-                        $aliases[$matches[1]] = $select;
-                    }
-                }
-            }
-        }
+        /** @var Query\Parameter[] $params */
+        $params = $originalQuery->getParameters()->toArray();
+        $sdql = preg_replace_callback('/\?/', function () use ($params) {
+            return ':'.array_shift( $params)->getName();
+        }, $originalQuery->getQuery()->getSQL());
 
-        $countQuery->select(sprintf(
-            'count(%s %s.%s) as _pager_cnt',
-            $countQuery instanceof ProxyQuery && !$countQuery->isDistinct() ? null : 'DISTINCT',
-            current($countQuery->getRootAliases()),
-            current($this->getCountColumn())
-        ));
+        $rsm = new ResultSetMapping();
+        $rsm->addScalarResult('cnt', 'cnt', 'bigint');
+        $countQuery = $originalQuery->getEntityManager()
+            ->createNativeQuery('SELECT count(*) as cnt FROM (' . $sdql . ') grp', $rsm);
 
-        if (!empty($prevSelect)) {
-            foreach ($groupBys as $groupBy) {
-                $parts = preg_split("/\s*,(?![^(]+\))\s*/", (string)$groupBy);
-                foreach ($parts as $part) {
-                    if (isset($aliases[$part])) {
-                        $countQuery->addSelect($aliases[$part]);
-                    }
-                }
-            }
-        }
+        $countQuery->setParameters($originalQuery->getParameters());
 
-        return array_sum(array_column(
-            $countQuery->resetDQLPart('orderBy')->getQuery()->getResult(Query::HYDRATE_SCALAR),
-            '_pager_cnt'
-        ));
+        return $countQuery->getSingleScalarResult();
     }
 
     public function getResults($hydrationMode = Query::HYDRATE_OBJECT)
