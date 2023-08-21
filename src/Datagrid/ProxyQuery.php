@@ -157,31 +157,33 @@ class ProxyQuery implements ProxyQueryInterface
          * the field used for sorting is not unique.
          */
 
-        $identifierFields = $queryBuilder
-            ->getEntityManager()
-            ->getMetadataFactory()
-            ->getMetadataFor(current($queryBuilder->getRootEntities()))
-            ->getIdentifierFieldNames();
+        if (empty($queryBuilder->getDQLPart('groupBy') || empty($queryBuilder->getDQLPart('orderBy')))) {
+            $identifierFields = $queryBuilder
+                ->getEntityManager()
+                ->getMetadataFactory()
+                ->getMetadataFor(current($queryBuilder->getRootEntities()))
+                ->getIdentifierFieldNames();
 
-        $existingOrders = [];
-        /** @var Query\Expr\OrderBy $order */
-        foreach ($queryBuilder->getDQLPart('orderBy') as $order) {
-            foreach ($order->getParts() as $part) {
-                $existingOrders[] = trim(str_replace([Criteria::DESC, Criteria::ASC], '', $part));
+            $existingOrders = [];
+            /** @var Query\Expr\OrderBy $order */
+            foreach ($queryBuilder->getDQLPart('orderBy') as $order) {
+                foreach ($order->getParts() as $part) {
+                    $existingOrders[] = trim(str_replace([Criteria::DESC, Criteria::ASC], '', $part));
+                }
             }
-        }
 
-        foreach ($identifierFields as $identifierField) {
+            foreach ($identifierFields as $identifierField) {
 
-            $order = $rootAlias . '.' . $identifierField;
-            if (!empty($queryBuilder->getDQLPart('groupBy'))) {
-                $order = 'min('.$order.')';
-            }
-            if (!\in_array($order, $existingOrders, true)) {
-                $queryBuilder->addOrderBy(
-                    $order,
-                    $this->getSortOrder() // reusing the sort order is the most natural way to go
-                );
+                $order = $rootAlias . '.' . $identifierField;
+                if (!empty($queryBuilder->getDQLPart('groupBy'))) {
+                    $order = 'min(' . $order . ')';
+                }
+                if (!\in_array($order, $existingOrders, true)) {
+                    $queryBuilder->addOrderBy(
+                        $order,
+                        $this->getSortOrder() // reusing the sort order is the most natural way to go
+                    );
+                }
             }
         }
 
