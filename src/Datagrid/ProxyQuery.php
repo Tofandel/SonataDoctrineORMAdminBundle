@@ -123,13 +123,26 @@ class ProxyQuery implements ProxyQueryInterface
         $rootAlias = current($queryBuilder->getRootAliases());
 
         // todo : check how doctrine behave, potential SQL injection here ...
-        if ($this->getSortBy()) {
+        if ($sortBy = $this->getSortBy()) {
             $orderByDQLPart = $queryBuilder->getDQLPart('orderBy');
             $queryBuilder->resetDQLPart('orderBy');
 
-            $sortBy = $this->getSortBy();
             if (false === strpos($sortBy, '.')) { // add the current alias
-                $sortBy = $rootAlias.'.'.$sortBy;
+                $alias = false;
+                foreach ($queryBuilder->getDQLPart('select') as $prevSelect) {
+                    $selects = preg_split("/\s*,(?![^(]+\))\s*/", (string)$prevSelect);
+                    foreach ($selects as $select) {
+                        if (preg_match('/\s+as\s+`?([^`]+)`?/i', $select, $matches)) {
+                            if ($matches[1] === $sortBy) {
+                                $alias = true;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+                if (!$alias) {
+                    $sortBy = $rootAlias.'.'.$sortBy;
+                }
             }
             $queryBuilder->addOrderBy($sortBy, $this->getSortOrder());
 
@@ -313,9 +326,8 @@ class ProxyQuery implements ProxyQueryInterface
      */
     protected function getFixedQueryBuilder(QueryBuilder $queryBuilder)
     {
-        $queryBuilderId = clone $queryBuilder;
-
         if (empty($queryBuilder->getDQLPart('groupBy'))) {
+            $queryBuilderId = clone $queryBuilder;
             $rootAlias = current($queryBuilderId->getRootAliases());
 
             // step 1 : retrieve the targeted class
