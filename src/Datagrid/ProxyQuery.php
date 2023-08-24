@@ -187,7 +187,7 @@ class ProxyQuery implements ProxyQueryInterface
             }
         }
 
-        $query = $this->getFixedQueryBuilder($queryBuilder)->getQuery();
+        $query = $this->getFixedQueryBuilder($queryBuilder, $hydrationMode)->getQuery();
         foreach ($this->hints as $name => $value) {
             $query->setHint($name, $value);
         }
@@ -340,9 +340,9 @@ class ProxyQuery implements ProxyQueryInterface
      *
      * @return QueryBuilder
      */
-    protected function getFixedQueryBuilder(QueryBuilder $queryBuilder)
+    protected function getFixedQueryBuilder(QueryBuilder $queryBuilder, $hydrationMode = Query::HYDRATE_OBJECT)
     {
-        if (empty($queryBuilder->getDQLPart('groupBy'))) {
+        if (empty($queryBuilder->getDQLPart('groupBy')) && $hydrationMode !== Query::HYDRATE_ARRAY) {
             $queryBuilderId = clone $queryBuilder;
             $rootAlias = current($queryBuilderId->getRootAliases());
 
