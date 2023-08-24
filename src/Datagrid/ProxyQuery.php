@@ -193,7 +193,7 @@ class ProxyQuery implements ProxyQueryInterface
         }
 
         $result = $query->execute($params, $hydrationMode);
-        if (isset($result[0]) && is_array($result[0])) {
+        if ($hydrationMode === Query::HYDRATE_OBJECT && isset($result[0]) && is_array($result[0])) {
             return array_map(function ($arr) {
                 return (object)$arr;
             }, $result);
