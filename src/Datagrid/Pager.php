@@ -33,27 +33,44 @@ class Pager extends BasePager
 
     public function computeNbResult()
     {
-        $originalQuery = clone $this->getQuery();
-        $originalQuery->resetDQLPart('orderBy');
+        if (!empty($this->getQuery()->getDQLPart('groupBy'))) {
+            $originalQuery = clone $this->getQuery();
+            $originalQuery->resetDQLPart('orderBy');
 
-        if (\count($this->getParameters()) > 0) {
-            $originalQuery->setParameters($this->getParameters());
+            if (\count($this->getParameters()) > 0) {
+                $originalQuery->setParameters($this->getParameters());
+            }
+
+            /** @var Query\Parameter[] $params */
+            $params = $originalQuery->getParameters()->toArray();
+            $sdql = preg_replace_callback('/\?/', function () use ($params) {
+                return ':' . array_shift($params)->getName();
+            }, $originalQuery->getQuery()->getSQL());
+
+            $rsm = new ResultSetMapping();
+            $rsm->addScalarResult('cnt', 'cnt', 'bigint');
+            $countQuery = $originalQuery->getEntityManager()
+                ->createNativeQuery('SELECT count(*) as cnt FROM (' . $sdql . ') grp', $rsm);
+
+            $countQuery->setParameters($originalQuery->getParameters());
+
+            return $countQuery->getSingleScalarResult();
+        } else {
+            $countQuery = clone $this->getQuery();
+
+            if (\count($this->getParameters()) > 0) {
+                $countQuery->setParameters($this->getParameters());
+            }
+
+            $countQuery->select(sprintf(
+                'count(%s %s.%s) as cnt',
+                $countQuery instanceof ProxyQuery && !$countQuery->isDistinct() ? null : 'DISTINCT',
+                current($countQuery->getRootAliases()),
+                current($this->getCountColumn())
+            ));
+
+            return (int) ($countQuery->resetDQLPart('orderBy')->getQuery()->getOneOrNullResult(Query::HYDRATE_SINGLE_SCALAR));
         }
-
-        /** @var Query\Parameter[] $params */
-        $params = $originalQuery->getParameters()->toArray();
-        $sdql = preg_replace_callback('/\?/', function () use ($params) {
-            return ':'.array_shift( $params)->getName();
-        }, $originalQuery->getQuery()->getSQL());
-
-        $rsm = new ResultSetMapping();
-        $rsm->addScalarResult('cnt', 'cnt', 'bigint');
-        $countQuery = $originalQuery->getEntityManager()
-            ->createNativeQuery('SELECT count(*) as cnt FROM (' . $sdql . ') grp', $rsm);
-
-        $countQuery->setParameters($originalQuery->getParameters());
-
-        return $countQuery->getSingleScalarResult();
     }
 
     public function getResults($hydrationMode = Query::HYDRATE_OBJECT)
